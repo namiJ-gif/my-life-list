@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bucket-list",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "4567", "/Users/namij/bucket-list-app"],
+      "port": 4567
+    }
+  ]
+}

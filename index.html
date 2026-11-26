@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>My Life Bucket List</title>
+  <meta name="description" content="やりたいことを、年代ごとのバケツに入れていこう！" />
+  <meta name="theme-color" content="#b9e8fc" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Bucket List" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=4" />
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══════════ ホーム：年代別バケツ ══════════ -->
+  <section class="screen" id="screenHome">
+
+    <div class="hero">
+      <img class="hero-img" src="images/hero.jpg" alt="My Life Bucket List" />
+      <div class="hero-stat" id="heroStat">
+        <span class="stat-done" id="statDone">0</span>
+        <span class="stat-slash">/</span>
+        <span class="stat-total" id="statTotal">0</span>
+        <span class="stat-unit">達成</span>
+      </div>
+      <button class="gear-btn" id="gearBtn" aria-label="設定">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path fill="currentColor" d="M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5m7.43-2.53a7.6 7.6 0 0 0 0-1.94l2.03-1.58a.5.5 0 0 0 .12-.62l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.68-.97l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.6 7.6 0 0 0-1.68.97l-2.39-.96a.5.5 0 0 0-.6.22L2.42 8.83a.5.5 0 0 0 .12.62l2.03 1.58a7.6 7.6 0 0 0 0 1.94l-2.03 1.58a.5.5 0 0 0-.12.62l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.52.4 1.08.72 1.68.97l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54a7.3 7.3 0 0 0 1.68-.97l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.62Z"/>
+        </svg>
+      </button>
+    </div>
+
+    <h2 class="section-title">年代別のバケツ</h2>
+    <div class="buckets" id="buckets"></div>
+
+    <div class="home-actions">
+      <button class="add-btn" id="addBtnHome">＋ 新しい夢をバケツに入れる</button>
+      <button class="achieved-btn" id="achievedBtn">🏅 叶えた夢をふりかえる</button>
+    </div>
+  </section>
+
+
+  <!-- ══════════ 年代別の夢リスト ══════════ -->
+  <section class="screen" id="screenList" hidden>
+    <div class="list-head" id="listHead">
+      <button class="back-btn" id="backBtn1" aria-label="バケツ一覧にもどる">←</button>
+      <img class="list-head-bucket" id="listHeadBucket" src="" alt="" />
+      <div class="list-head-text">
+        <h2 id="listTitle">　</h2>
+        <p id="listSub">　</p>
+      </div>
+    </div>
+
+    <div class="list-tools">
+      <span class="tools-label">並び替え</span>
+      <select id="sortSelect" class="sort-select">
+        <option value="newest">新しい順</option>
+        <option value="oldest">古い順</option>
+        <option value="age">目標年齢が早い順</option>
+        <option value="undone">まだの夢だけ</option>
+      </select>
+    </div>
+
+    <ul class="dreams" id="dreamList"></ul>
+
+    <div class="empty-state" id="emptyState" hidden>
+      <div class="empty-emoji">🪣</div>
+      <p>このバケツはまだ空っぽです。<br />やりたいことを入れてみよう！</p>
+    </div>
+
+    <div class="home-actions">
+      <button class="add-btn" id="addBtnList">＋ このバケツに夢を入れる</button>
+      <button class="back-link" id="backBtn2">← 年代別バケツにもどる</button>
+    </div>
+  </section>
+
+
+  <!-- ══════════ 叶えた夢 ══════════ -->
+  <section class="screen" id="screenDone" hidden>
+    <div class="list-head">
+      <button class="back-btn" id="backBtn3" aria-label="バケツ一覧にもどる">←</button>
+      <div class="list-head-medal">🏅</div>
+      <div class="list-head-text">
+        <h2>叶えた夢</h2>
+        <p id="doneSub">　</p>
+      </div>
+    </div>
+
+    <ul class="dreams" id="doneList"></ul>
+
+    <div class="empty-state" id="doneEmpty" hidden>
+      <div class="empty-emoji">✨</div>
+      <p>まだ達成した夢はありません。<br />ひとつずつ叶えていこう！</p>
+    </div>
+
+    <div class="home-actions">
+      <button class="back-link" id="backBtn4">← 年代別バケツにもどる</button>
+    </div>
+  </section>
+
+</div>
+
+
+<!-- ══════════ 夢を追加／編集するシート ══════════ -->
+<div class="sheet-overlay" id="formOverlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 class="sheet-title" id="formTitle">新しい夢</h3>
+      <button class="sheet-close" id="formClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="sheet-body">
+      <label class="field-label" for="fText">やりたいこと</label>
+      <input type="text" id="fText" class="field-input" maxlength="80" placeholder="例：家族でオーロラを見る" />
+
+      <label class="field-label" for="fDecade">どの年代のバケツに入れる？</label>
+      <div class="decade-picker" id="fDecade"></div>
+
+      <label class="field-label" for="fAge">何歳までに？（任意）</label>
+      <div class="age-row">
+        <input type="number" id="fAge" class="field-input small" min="1" max="120" placeholder="35" />
+        <span class="age-unit">歳までに</span>
+        <span class="age-year" id="fYearHint"></span>
+      </div>
+
+      <label class="field-label" for="fMemo">メモ（任意）</label>
+      <textarea id="fMemo" class="field-input" rows="2" maxlength="200" placeholder="思い出したときのメモ…"></textarea>
+
+      <button class="sheet-save" id="formSave">バケツに入れる</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ 設定 ══════════ -->
+<div class="sheet-overlay" id="setOverlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <h3 class="sheet-title" id="setTitle">設定</h3>
+      <button class="sheet-close" id="setClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="sheet-body">
+      <label class="field-label" for="fBirth">誕生日</label>
+      <input type="date" id="fBirth" class="field-input" />
+      <p class="field-hint" id="ageHint"></p>
+      <p class="field-hint">年齢から「何年のこと？」を計算するのに使います。</p>
+      <button class="sheet-save" id="setSave">保存する</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+<script src="app.js?v=4"></script>
+</body>
+</html>
