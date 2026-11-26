@@ -8,6 +8,7 @@ const STORAGE_KEY = 'bucketListItems_v2';   // 既存データをそのまま引
 const BIRTH_KEY   = 'birthDate';
 const MIGRATE_KEY = 'blMigratedV3';
 const DEFAULT_BIRTH = '1993-09-01';
+const VERSION = '2026-11-26 版';
 
 /* ── 年代（バケツ） ─────────────────────────────────── */
 const DECADES = [
@@ -520,6 +521,7 @@ async function importFromHash() {
 function openSettings() {
   fBirth.value = birthStr();
   ageHint.textContent = `いまは ${currentAge()}歳です。`;
+  $('verLabel').textContent = `バージョン：${VERSION}`;
   ioBox.value = ''; ioMsg.textContent = '';
   openSheet(setOverlay);
 }
@@ -616,18 +618,13 @@ buildPickers();
 renderAll();
 importFromHash();
 
-// ローカルでの開発中はオフライン用キャッシュを使わない（古い画面が出てしまうため）
-const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
-if ('serviceWorker' in navigator && !isLocal) {
-  const hadController = !!navigator.serviceWorker.controller;
-  let reloaded = false;
-  // 新しい版に入れかわったら、一度だけ読み直して最新の画面にする
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController && !reloaded) { reloaded = true; location.reload(); }
-  });
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => reg.update())
-      .catch(() => {});
-  });
+// 端末に残っている「オフライン保存」をすべて解除する
+// （更新しても古い画面が出続ける原因になっていたため）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations()
+    .then(rs => rs.forEach(r => r.unregister().catch(() => {})))
+    .catch(() => {});
+}
+if (window.caches) {
+  caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {});
 }
