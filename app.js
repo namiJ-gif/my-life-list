@@ -106,7 +106,8 @@ function recalcAges() {
 }
 function migrate() {
   if (localStorage.getItem(MIGRATE_KEY)) return;
-  items.forEach(it => { it.cat = OLD_CAT_MAP[it.cat] || null; });
+  // すでに新しい名前（family / work / self）のものは触らない
+  items.forEach(it => { if (!catById(it.cat)) it.cat = OLD_CAT_MAP[it.cat] || null; });
   recalcAges();
   saveItems();
   localStorage.setItem(MIGRATE_KEY, '1');
@@ -129,9 +130,6 @@ const panelBody   = $('panelBody');
 const panelEmpty  = $('panelEmpty');
 const panelDoneBlock = $('panelDoneBlock');
 const panelDoneList  = $('panelDoneList');
-
-const orderBody   = $('orderBody');
-const orderEmpty  = $('orderEmpty');
 
 const formOverlay = $('formOverlay');
 const formTitle   = $('formTitle');
@@ -165,7 +163,6 @@ function groupByCat(list) {
 function renderAll() {
   renderBuckets();
   renderPanel();
-  renderOrder();
   updateStat();
 }
 function updateStat() {
@@ -259,29 +256,6 @@ function renderPanel() {
   panelDoneList.innerHTML = '';
   done.forEach(it => panelDoneList.appendChild(dreamCard(it)));
   panelDoneBlock.hidden = done.length === 0;
-}
-
-
-/* ══════════ 叶える順の一覧（未達成のみ） ══════════ */
-function renderOrder() {
-  const undone = items.filter(i => !i.done);
-  orderBody.innerHTML = '';
-
-  DECADES.concat([{ id: null, label: '年代が決まっていない夢' }]).forEach(d => {
-    const list = undone.filter(i => decadeOf(i) === d.id);
-    if (!list.length) return;
-    const sec = document.createElement('section');
-    sec.className = 'order-sec';
-    const h = document.createElement('p');
-    h.className = 'order-head';
-    h.dataset.decade = d.id || 'none';
-    h.textContent = d.label;
-    sec.appendChild(h);
-    groupByCat(list).forEach(g => sec.appendChild(catGroup(g.cat, g.list)));
-    orderBody.appendChild(sec);
-  });
-
-  orderEmpty.hidden = undone.length > 0;
 }
 
 
@@ -645,5 +619,15 @@ importFromHash();
 // ローカルでの開発中はオフライン用キャッシュを使わない（古い画面が出てしまうため）
 const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
 if ('serviceWorker' in navigator && !isLocal) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  // 新しい版に入れかわったら、一度だけ読み直して最新の画面にする
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => reg.update())
+      .catch(() => {});
+  });
 }

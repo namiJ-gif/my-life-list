@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
 
@@ -41,6 +41,13 @@
   <div class="buckets" id="buckets"></div>
   <div id="unsetWrap"></div>
 
+  <!-- ══════════ 追加ボタン ══════════ -->
+  <div class="add-wrap">
+    <button class="add-img-btn" id="addBtn">
+      <img src="images/btn-add.png" alt="新しい夢をバケツに入れる" />
+    </button>
+  </div>
+
   <!-- ══════════ 選んだ年代の夢（同じページ内で展開） ══════════ -->
   <section class="panel" id="panel" hidden>
     <div class="panel-head">
@@ -60,18 +67,6 @@
       <ul class="dreams" id="panelDoneList"></ul>
     </div>
   </section>
-
-  <!-- ══════════ 追加ボタン ══════════ -->
-  <div class="add-wrap">
-    <button class="add-img-btn" id="addBtn">
-      <img src="images/btn-add.png" alt="新しい夢をバケツに入れる" />
-    </button>
-  </div>
-
-  <!-- ══════════ 叶える順の一覧（未達成のみ） ══════════ -->
-  <h2 class="section-title">叶える順</h2>
-  <div class="order-body" id="orderBody"></div>
-  <p class="panel-empty" id="orderEmpty" hidden>まだ夢がありません。<br />バケツに入れてみよう！</p>
 
 </div>
 
@@ -148,6 +143,6 @@
 </div>
 
 <canvas id="confetti" aria-hidden="true"></canvas>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
