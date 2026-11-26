@@ -1,9 +1,9 @@
-const CACHE = 'bucket-list-v7';
+const CACHE = 'bucket-list-v8';
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=7',
-  './app.js?v=7',
+  './style.css?v=8',
+  './app.js?v=8',
   './manifest.json',
   './images/hero.jpg',
   './images/bucket-30f.png',
@@ -36,7 +36,7 @@ self.addEventListener('fetch', e => {
   // HTML は「まずネット」。新しい版をすぐ受け取れるようにする
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: 'no-cache' })   // 必ずサーバーに最新かどうか確かめる
         .then(res => {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
