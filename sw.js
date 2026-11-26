@@ -1,9 +1,9 @@
-const CACHE = 'bucket-list-v6';
+const CACHE = 'bucket-list-v7';
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=6',
-  './app.js?v=6',
+  './style.css?v=7',
+  './app.js?v=7',
   './manifest.json',
   './images/hero.jpg',
   './images/bucket-30f.png',

@@ -437,5 +437,25 @@ body {
 .sheet-save:active { transform: translateY(3px); box-shadow: 0 1px 0 #d94f96; }
 
 
+/* ── たずねる窓 ───────────────────────────────────── */
+.ask-overlay { align-items: center; z-index: 70; }
+.ask-box {
+  width: calc(100% - 44px); max-width: 360px;
+  background: #fff; border-radius: 20px;
+  padding: 22px 20px 18px;
+  box-shadow: 0 10px 30px rgba(20,50,90,.28);
+  animation: slideUp .2s cubic-bezier(.22,1,.36,1) both;
+}
+.ask-text { font-size: 14.5px; font-weight: 700; line-height: 1.6; white-space: pre-line; }
+.ask-btns { display: flex; gap: 10px; margin-top: 18px; }
+.ask-btns button {
+  flex: 1; padding: 12px; font: inherit; font-size: 15px; font-weight: 800;
+  border-radius: 999px; cursor: pointer;
+}
+.ask-no  { color: var(--ink-soft); background: #f1f7fb; border: 2px solid var(--line); }
+.ask-yes { color: #fff; background: linear-gradient(180deg, #fb9fcd 0%, #ec6ead 100%); border: none; box-shadow: 0 3px 0 #d94f96; }
+.ask-yes:active { transform: translateY(2px); box-shadow: 0 1px 0 #d94f96; }
+
+
 /* ── 紙吹雪 ───────────────────────────────────────────── */
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 99; }

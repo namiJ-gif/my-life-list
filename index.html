@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
 
@@ -136,7 +136,18 @@
   </div>
 </div>
 
+<!-- ══════════ たずねる窓 ══════════ -->
+<div class="sheet-overlay ask-overlay" id="askOverlay" hidden>
+  <div class="ask-box" role="dialog" aria-modal="true" aria-labelledby="askText">
+    <p class="ask-text" id="askText">　</p>
+    <div class="ask-btns">
+      <button class="ask-no"  id="askNo">やめる</button>
+      <button class="ask-yes" id="askYes">はい</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="confetti" aria-hidden="true"></canvas>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

@@ -315,10 +315,10 @@ function toggleDone(id) {
   renderAll();
 }
 
-function removeItem(id, li) {
+async function removeItem(id, li) {
   const item = items.find(i => i.id === id);
   if (!item) return;
-  if (!confirm(`「${item.text}」をバケツから出しますか？`)) return;
+  if (!await ask(`「${item.text}」\nをバケツから出しますか？`, '出す')) return;
   li.classList.add('removing');
   li.addEventListener('animationend', () => {
     items = items.filter(i => i.id !== id);
@@ -329,8 +329,26 @@ function removeItem(id, li) {
 
 
 /* ══════════ 追加・編集シート ══════════ */
-function openSheet(el)  { el.hidden = false; document.body.classList.add('sheet-open'); }
-function closeSheet(el) { el.hidden = true;  document.body.classList.remove('sheet-open'); }
+function syncSheetClass() {
+  const any = [...document.querySelectorAll('.sheet-overlay')].some(o => !o.hidden);
+  document.body.classList.toggle('sheet-open', any);
+}
+function openSheet(el)  { el.hidden = false; syncSheetClass(); }
+function closeSheet(el) { el.hidden = true;  syncSheetClass(); }
+
+/* 画面の中でたずねる（ブラウザの確認ダイアログは使わない） */
+let askResolve = null;
+function ask(message, yesLabel) {
+  $('askText').textContent = message;
+  $('askYes').textContent = yesLabel || 'はい';
+  openSheet($('askOverlay'));
+  return new Promise(res => { askResolve = res; });
+}
+function answerAsk(v) {
+  closeSheet($('askOverlay'));
+  const r = askResolve; askResolve = null;
+  if (r) r(v);
+}
 
 function buildPickers() {
   fDecade.innerHTML = '';
@@ -500,26 +518,26 @@ function doExport() {
     ioMsg.textContent = `書き出しました（${items.length}こ）。枠の中をコピーしてください。`;
   }
 }
-function doImport() {
+async function doImport() {
   const v = ioBox.value.trim();
   if (!v) { ioMsg.textContent = '枠に貼り付けてから押してください。'; return; }
   let data;
   try { data = decodeData(v); }
   catch { ioMsg.textContent = '読み取れませんでした。貼り付けた内容をご確認ください。'; return; }
-  if (!confirm(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。\nよろしいですか？`)) return;
+  if (!await ask(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。`, '読み込む')) return;
   applyImport(data);
   ioBox.value = '';
   ioMsg.textContent = `${items.length}こ の夢を読み込みました。`;
 }
 
 /** リンクで開かれたときの読み込み */
-function importFromHash() {
+async function importFromHash() {
   if (!location.hash.startsWith('#import=')) return;
   let data;
   try { data = decodeData(location.hash); }
   catch { return; }
-  const ok = confirm(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。\nよろしいですか？`);
   history.replaceState(null, '', location.pathname + location.search);
+  const ok = await ask(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。`, '読み込む');
   if (ok) applyImport(data);
 }
 
@@ -563,9 +581,12 @@ $('setSave').addEventListener('click', saveSettings);
 $('exportBtn').addEventListener('click', doExport);
 $('importBtn').addEventListener('click', doImport);
 setOverlay.addEventListener('click', e => { if (e.target === setOverlay) closeSheet(setOverlay); });
+$('askYes').addEventListener('click', () => answerAsk(true));
+$('askNo').addEventListener('click',  () => answerAsk(false));
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (!$('askOverlay').hidden) { answerAsk(false); return; }
   closeForm();
   closeSheet(setOverlay);
 });
