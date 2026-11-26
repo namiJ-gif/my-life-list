@@ -420,13 +420,35 @@ function fromB64(code) {
   return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
 }
 
-/** 端末にわたす用の短い符号 */
+/** 人が読める形に書き出す（短くて、途中で切れても気づける） */
+function encodeText(list) {
+  const lines = [];
+  const groups = DECADES.map(d => ({ key: d.id, label: d.label }))
+                        .concat([{ key: null, label: '年代なし' }]);
+  groups.forEach(g => {
+    const part = list.filter(i => decadeOf(i) === g.key);
+    if (!part.length) return;
+    lines.push('#' + g.label);
+    part.slice().sort(byName).forEach(i => {
+      const cat = catById(catOf(i));
+      const cells = [
+        cat ? cat.label : 'なし',
+        (i.done ? '✓' : '') + i.text,
+      ];
+      if (i.deadlineAge != null) cells.push(String(i.deadlineAge));
+      lines.push(cells.join('｜'));
+    });
+  });
+  return lines.join('\n');
+}
+
+/** 端末にわたす用の短い符号（リンク用。読み込みでは今も受け付ける） */
 function encodeData(list) {
   const d = list.map(i => [decadeOf(i) || '', catOf(i) || '', i.text, i.done ? 1 : 0, i.deadlineAge ?? '']);
   return toB64(JSON.stringify({ v: 1, d }));
 }
 
-/** 符号か、人が読める文章か、どちらでも読み込める */
+/** 符号でも、人が読める文章でも、どちらでも読み込める */
 function decodeData(input) {
   const s = String(input).trim();
   const hit = /#import=([A-Za-z0-9\-_]+)/.exec(s);
@@ -436,15 +458,12 @@ function decodeData(input) {
     const obj = JSON.parse(fromB64(code));
     const rows = Array.isArray(obj) ? obj : obj.d;
     if (!Array.isArray(rows)) throw new Error('形式がちがいます');
-    if (Array.isArray(rows[0]) || rows.length === 0) {
-      return rows.map(r => ({
-        text: r[2], decade: r[0] || null, cat: r[1] || null,
-        done: !!r[3], memo: '',
-        deadlineAge: r[4] === '' || r[4] == null ? null : Number(r[4]),
-        deadlineYear: null,
-      }));
-    }
-    return rows;   // 旧い形（そのままの配列）
+    return rows.map(r => ({
+      text: r[2], decade: r[0] || null, cat: r[1] || null,
+      done: !!r[3], memo: '',
+      deadlineAge: r[4] === '' || r[4] == null ? null : Number(r[4]),
+      deadlineYear: null,
+    }));
   }
   return fromText(s);
 }
@@ -456,19 +475,35 @@ function fromText(s) {
   s.split(/\r?\n/).forEach(line => {
     const t = line.trim();
     if (!t) return;
+
     if (t.startsWith('#') || t.startsWith('＃')) {
       const name = t.slice(1).trim();
       const d = DECADES.find(x => x.label === name);
       dec = d ? d.id : null;
       return;
     }
-    let cat = null, text = t;
-    const m = /^(.{1,6}?)\s*[｜|]\s*(.+)$/.exec(t);
-    if (m) {
-      const c = CATS.find(x => x.label === m[1].trim());
-      if (c) { cat = c.id; text = m[2].trim(); }
+
+    const cells = t.split(/[｜|]/).map(x => x.trim());
+    let cat = null, text = t, age = null;
+
+    if (cells.length >= 2) {
+      const c = CATS.find(x => x.label === cells[0]);
+      if (c || cells[0] === 'なし') {
+        cat = c ? c.id : null;
+        text = cells[1];
+        if (cells[2] && /^\d{1,3}$/.test(cells[2])) age = Number(cells[2]);
+      }
     }
-    if (text) out.push({ text, decade: dec, cat, done: false, memo: '', deadlineAge: null, deadlineYear: null });
+
+    let done = false;
+    text = text.replace(/^[✓✔☑]\s*/, m => { done = true; return ''; }).trim();
+    if (!text) return;
+
+    out.push({
+      text, decade: dec, cat, done, memo: '',
+      deadlineAge: age,
+      deadlineYear: age != null ? yearForAge(age) : null,
+    });
   });
   if (!out.length) throw new Error('読み取れませんでした');
   return out;
@@ -482,17 +517,14 @@ function applyImport(data) {
 }
 
 function doExport() {
-  const link = location.origin + location.pathname + '#import=' + encodeData(items);
-  ioBox.value = link;
+  const text = encodeText(items);
+  ioBox.value = text;
   ioBox.focus(); ioBox.select();
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(link)
-      .then(() => { ioMsg.textContent = `コピーしました（${items.length}こ）。べつの端末で開くか、下の枠に貼り付けてください。`; })
-      .catch(() => { ioMsg.textContent = `書き出しました（${items.length}こ）。枠の中をコピーしてください。`; });
-  } else {
-    ioMsg.textContent = `書き出しました（${items.length}こ）。枠の中をコピーしてください。`;
-  }
+  const done = () => { ioMsg.textContent = `${items.length}この夢を書き出しました。この枠の中をぜんぶコピーして、もう片方の端末の同じ枠に貼り付けてください。`; };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done).catch(done);
+  else done();
 }
+
 async function doImport() {
   const v = ioBox.value.trim();
   if (!v) { ioMsg.textContent = '枠に貼り付けてから押してください。'; return; }
@@ -502,7 +534,7 @@ async function doImport() {
   if (!await ask(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。`, '読み込む')) return;
   applyImport(data);
   ioBox.value = '';
-  ioMsg.textContent = `${items.length}こ の夢を読み込みました。`;
+  ioMsg.textContent = `${items.length}この夢を読み込みました。`;
 }
 
 /** リンクで開かれたときの読み込み */
