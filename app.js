@@ -8,9 +8,8 @@ const STORAGE_KEY = 'bucketListItems_v2';   // 既存データをそのまま引
 const BIRTH_KEY   = 'birthDate';
 const MIGRATE_KEY = 'blMigratedV3';
 const DEFAULT_BIRTH = '1993-09-01';
-const ORDER_STEP  = 15;                     // 「叶える順」の一覧をこの件数ずつ見せる
 
-/* ── 年代（バケツ）の定義 ───────────────────────────── */
+/* ── 年代（バケツ） ─────────────────────────────────── */
 const DECADES = [
   { id:'30f', label:'30代前半', range:'〜34歳',   min:  0, max: 34, img:'images/bucket-30f.png' },
   { id:'30b', label:'30代後半', range:'35〜39歳', min: 35, max: 39, img:'images/bucket-30b.png' },
@@ -20,6 +19,22 @@ const DECADES = [
 ];
 const decadeById = id => DECADES.find(d => d.id === id) || null;
 const decadeRank = id => { const i = DECADES.findIndex(d => d.id === id); return i < 0 ? 99 : i; };
+
+/* ── なかま分け（大項目） ───────────────────────────── */
+const CATS = [
+  { id:'family', label:'家族', emoji:'👪' },
+  { id:'work',   label:'仕事', emoji:'💻' },
+  { id:'self',   label:'自分', emoji:'🌱' },
+];
+const CAT_ORDER = ['family', 'work', 'self', null];
+const catById = id => CATS.find(c => c.id === id) || null;
+
+/** 昔のカテゴリ → 新しい大項目 */
+const OLD_CAT_MAP = {
+  family:'family', relations:'family', travel:'family',
+  career:'work',   money:'work',
+  health:'self',   hobby:'self',
+};
 
 
 /* ══════════ 年齢の計算（誕生日を考慮した正確な計算） ══════════ */
@@ -53,21 +68,34 @@ function decadeOf(item) {
   if (item.deadlineAge != null) return decadeFromAge(item.deadlineAge);
   return item.decade || null;
 }
+const catOf = item => (item.cat && catById(item.cat)) ? item.cat : null;
 
 
 /* ══════════ データ ══════════ */
 let items = [];
-let currentSort   = 'age';
-let openDecadeId  = null;   // 展開中のバケツ（null = 閉じている）
-let editingId     = null;
-let formDecade    = null;
-let orderShown    = ORDER_STEP;
+let openDecadeId = null;
+let editingId    = null;
+let formDecade   = null;
+let formCat      = null;
 
 function loadItems() {
   try { items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
   catch { items = []; }
 }
 function saveItems() { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+
+function normalize(it, i) {
+  return {
+    id: Number(it.id) || (Date.now() + i),
+    text: String(it.text || '').slice(0, 120),
+    done: !!it.done,
+    memo: String(it.memo || '').slice(0, 200),
+    deadlineAge:  it.deadlineAge  != null ? Number(it.deadlineAge)  : null,
+    deadlineYear: it.deadlineYear != null ? Number(it.deadlineYear) : null,
+    decade: decadeById(it.decade) ? it.decade : null,
+    cat: catById(it.cat) ? it.cat : null,
+  };
+}
 
 function recalcAges() {
   items.forEach(it => {
@@ -78,7 +106,7 @@ function recalcAges() {
 }
 function migrate() {
   if (localStorage.getItem(MIGRATE_KEY)) return;
-  items.forEach(it => { delete it.cat; });
+  items.forEach(it => { it.cat = OLD_CAT_MAP[it.cat] || null; });
   recalcAges();
   saveItems();
   localStorage.setItem(MIGRATE_KEY, '1');
@@ -97,20 +125,19 @@ const panel       = $('panel');
 const panelBucket = $('panelBucket');
 const panelTitle  = $('panelTitle');
 const panelSub    = $('panelSub');
-const panelList   = $('panelList');
+const panelBody   = $('panelBody');
 const panelEmpty  = $('panelEmpty');
 const panelDoneBlock = $('panelDoneBlock');
 const panelDoneList  = $('panelDoneList');
-const sortSelect  = $('sortSelect');
 
-const orderList   = $('orderList');
+const orderBody   = $('orderBody');
 const orderEmpty  = $('orderEmpty');
-const moreBtn     = $('moreBtn');
 
 const formOverlay = $('formOverlay');
 const formTitle   = $('formTitle');
 const fText       = $('fText');
 const fDecade     = $('fDecade');
+const fCat        = $('fCat');
 const fAge        = $('fAge');
 const fYearHint   = $('fYearHint');
 const fMemo       = $('fMemo');
@@ -118,23 +145,19 @@ const fMemo       = $('fMemo');
 const setOverlay  = $('setOverlay');
 const fBirth      = $('fBirth');
 const ageHint     = $('ageHint');
+const ioBox       = $('ioBox');
+const ioMsg       = $('ioMsg');
 
 
 /* ══════════ 並び順 ══════════ */
-/** 叶える順：目標年齢が早いものから。未設定は最後 */
-function byPlan(a, b) {
-  const aa = a.deadlineAge ?? 999, bb = b.deadlineAge ?? 999;
-  if (aa !== bb) return aa - bb;
-  const ra = decadeRank(decadeOf(a)), rb = decadeRank(decadeOf(b));
-  if (ra !== rb) return ra - rb;
-  return a.id - b.id;
-}
-function sortBy(list, how) {
-  const arr = [...list];
-  if (how === 'newest') arr.sort((a, b) => b.id - a.id);
-  else if (how === 'oldest') arr.sort((a, b) => a.id - b.id);
-  else arr.sort(byPlan);
-  return arr;
+/** あいうえお順（YouTube など同じ言葉で始まるものが自然にまとまる） */
+const byName = (a, b) => a.text.localeCompare(b.text, 'ja', { numeric: true });
+
+/** 大項目でまとめる。各グループの中はあいうえお順 */
+function groupByCat(list) {
+  return CAT_ORDER
+    .map(id => ({ cat: id, list: list.filter(i => catOf(i) === id).sort(byName) }))
+    .filter(g => g.list.length > 0);
 }
 
 
@@ -145,7 +168,6 @@ function renderAll() {
   renderOrder();
   updateStat();
 }
-
 function updateStat() {
   statTotal.textContent = items.length;
   statDone.textContent  = items.filter(i => i.done).length;
@@ -174,7 +196,6 @@ function renderBuckets() {
     bucketsEl.appendChild(btn);
   });
 
-  // 年代が決まっていない夢（データを失わないための受け皿）
   unsetWrap.innerHTML = '';
   const unset = items.filter(i => decadeOf(i) === null);
   if (unset.length) {
@@ -196,25 +217,43 @@ function toggleDecade(id) {
 }
 
 
+/* ══════════ 大項目のかたまり ══════════ */
+function catGroup(catId, list) {
+  const c = catById(catId);
+  const wrap = document.createElement('div');
+  wrap.className = 'cat-group';
+  wrap.dataset.cat = catId || 'none';
+
+  const head = document.createElement('p');
+  head.className = 'cat-head';
+  head.innerHTML = `${c ? `${c.emoji} ${c.label}` : '🫧 なかま分けなし'}<span class="cat-num">${list.length}</span>`;
+  wrap.appendChild(head);
+
+  const ul = document.createElement('ul');
+  ul.className = 'dreams';
+  list.forEach(it => ul.appendChild(dreamCard(it)));
+  wrap.appendChild(ul);
+  return wrap;
+}
+
+
 /* ══════════ 展開パネル（選んだ年代の夢） ══════════ */
 function renderPanel() {
   if (!openDecadeId) { panel.hidden = true; return; }
   panel.hidden = false;
 
   const d = decadeById(openDecadeId);
-  const all = items.filter(i => decadeOf(i) === (openDecadeId === 'none' ? null : openDecadeId));
-  const undone = sortBy(all.filter(i => !i.done), currentSort);
-  const done   = sortBy(all.filter(i =>  i.done), 'age');
+  const all    = items.filter(i => decadeOf(i) === (openDecadeId === 'none' ? null : openDecadeId));
+  const undone = all.filter(i => !i.done);
+  const done   = all.filter(i =>  i.done).sort(byName);
 
   if (d) { panelBucket.src = d.img; panelBucket.hidden = false; }
   else   { panelBucket.hidden = true; }
   panelTitle.textContent = d ? d.label : '年代が決まっていない夢';
-  panelSub.textContent = d
-    ? `${d.range}　まだの夢 ${undone.length}こ　叶えた夢 ${done.length}こ`
-    : `まだの夢 ${undone.length}こ　叶えた夢 ${done.length}こ`;
+  panelSub.textContent   = `まだの夢 ${undone.length}こ　叶えた夢 ${done.length}こ`;
 
-  panelList.innerHTML = '';
-  undone.forEach(it => panelList.appendChild(dreamCard(it)));
+  panelBody.innerHTML = '';
+  groupByCat(undone).forEach(g => panelBody.appendChild(catGroup(g.cat, g.list)));
   panelEmpty.hidden = all.length > 0;
 
   panelDoneList.innerHTML = '';
@@ -225,46 +264,41 @@ function renderPanel() {
 
 /* ══════════ 叶える順の一覧（未達成のみ） ══════════ */
 function renderOrder() {
-  const undone = items.filter(i => !i.done).sort(byPlan);
-  const shown  = undone.slice(0, orderShown);
+  const undone = items.filter(i => !i.done);
+  orderBody.innerHTML = '';
 
-  orderList.innerHTML = '';
-  shown.forEach(it => orderList.appendChild(dreamCard(it, true)));
+  DECADES.concat([{ id: null, label: '年代が決まっていない夢' }]).forEach(d => {
+    const list = undone.filter(i => decadeOf(i) === d.id);
+    if (!list.length) return;
+    const sec = document.createElement('section');
+    sec.className = 'order-sec';
+    const h = document.createElement('p');
+    h.className = 'order-head';
+    h.dataset.decade = d.id || 'none';
+    h.textContent = d.label;
+    sec.appendChild(h);
+    groupByCat(list).forEach(g => sec.appendChild(catGroup(g.cat, g.list)));
+    orderBody.appendChild(sec);
+  });
+
   orderEmpty.hidden = undone.length > 0;
-
-  const rest = undone.length - shown.length;
-  moreBtn.hidden = rest <= 0;
-  moreBtn.textContent = `もっと見る（あと${rest}こ）`;
 }
 
 
-/* ══════════ 夢カード ══════════ */
-function dreamCard(item, withBucket) {
+/* ══════════ 夢カード（やることを1行だけ） ══════════ */
+function dreamCard(item) {
   const dec = decadeOf(item);
   const li = document.createElement('li');
   li.className = 'dream' + (item.done ? ' done' : '');
   if (dec) li.dataset.decade = dec;
 
-  const meta = [];
-  if (withBucket && dec) meta.push(`<span>🪣 ${decadeById(dec).label}</span>`);
-  if (item.deadlineAge != null) {
-    const overdue = item.deadlineYear && item.deadlineYear < new Date().getFullYear() && !item.done;
-    meta.push(`<span class="${overdue ? 'overdue' : ''}">🗓 ${item.deadlineAge}歳までに（${item.deadlineYear}年）</span>`);
-  } else if (!withBucket && dec) {
-    meta.push(`<span>🪣 ${decadeById(dec).label}</span>`);
-  }
-  if (item.memo) meta.push(`<span>💬 ${escHtml(item.memo).slice(0, 24)}</span>`);
-
   li.innerHTML = `
     <button class="check" aria-label="${item.done ? '未達成にもどす' : '達成にする'}">${item.done ? '✓' : ''}</button>
-    <div class="dream-body">
-      <span class="dream-title">${escHtml(item.text)}</span>
-      ${meta.length ? `<div class="dream-meta">${meta.join('')}</div>` : ''}
-    </div>
-    <div class="dream-acts">
+    <span class="dream-title">${escHtml(item.text)}</span>
+    <span class="dream-acts">
       <button class="icon-btn edit" aria-label="編集">✏️</button>
       <button class="icon-btn del"  aria-label="削除">🗑️</button>
-    </div>`;
+    </span>`;
 
   li.querySelector('.check').addEventListener('click', () => toggleDone(item.id));
   li.querySelector('.edit').addEventListener('click',  () => openForm(item.id));
@@ -298,25 +332,32 @@ function removeItem(id, li) {
 function openSheet(el)  { el.hidden = false; document.body.classList.add('sheet-open'); }
 function closeSheet(el) { el.hidden = true;  document.body.classList.remove('sheet-open'); }
 
-function buildDecadePicker() {
+function buildPickers() {
   fDecade.innerHTML = '';
   DECADES.forEach(d => {
     const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'dchip';
-    b.dataset.decade = d.id;
-    b.textContent = d.label;
+    b.type = 'button'; b.className = 'dchip'; b.dataset.decade = d.id; b.textContent = d.label;
     b.addEventListener('click', () => {
       formDecade = d.id;
       const a = parseInt(fAge.value, 10);
       if (!isNaN(a) && decadeFromAge(a) !== d.id) fAge.value = '';
-      syncPicker();
+      syncPickers();
     });
     fDecade.appendChild(b);
   });
+
+  fCat.innerHTML = '';
+  CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'cchip'; b.dataset.cat = c.id;
+    b.textContent = `${c.emoji} ${c.label}`;
+    b.addEventListener('click', () => { formCat = (formCat === c.id) ? null : c.id; syncPickers(); });
+    fCat.appendChild(b);
+  });
 }
-function syncPicker() {
+function syncPickers() {
   fDecade.querySelectorAll('.dchip').forEach(c => c.classList.toggle('on', c.dataset.decade === formDecade));
+  fCat.querySelectorAll('.cchip').forEach(c => c.classList.toggle('on', c.dataset.cat === formCat));
   const a = parseInt(fAge.value, 10);
   fYearHint.textContent = (!isNaN(a) && a > 0) ? `＝ ${yearForAge(a)}年` : '';
 }
@@ -331,8 +372,9 @@ function openForm(id) {
   fMemo.value = item ? (item.memo || '') : '';
   fAge.value  = item && item.deadlineAge != null ? item.deadlineAge : '';
   formDecade  = item ? decadeOf(item) : (openDecadeId && openDecadeId !== 'none' ? openDecadeId : null);
+  formCat     = item ? catOf(item) : null;
 
-  syncPicker();
+  syncPickers();
   openSheet(formOverlay);
   setTimeout(() => fText.focus(), 60);
 }
@@ -354,6 +396,7 @@ function saveForm() {
     item.deadlineAge  = age;
     item.deadlineYear = age != null ? yearForAge(age) : null;
     item.decade = dec;
+    item.cat = formCat;
   } else {
     items.unshift({
       id: Date.now(), text, done: false,
@@ -361,6 +404,7 @@ function saveForm() {
       deadlineAge: age,
       deadlineYear: age != null ? yearForAge(age) : null,
       decade: dec,
+      cat: formCat,
     });
     if (dec) openDecadeId = dec;
   }
@@ -370,10 +414,121 @@ function saveForm() {
 }
 
 
+/* ══════════ 端末どうしの引っ越し ══════════ */
+function toB64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromB64(code) {
+  const b64 = code.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64);
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+/** 端末にわたす用の短い符号 */
+function encodeData(list) {
+  const d = list.map(i => [decadeOf(i) || '', catOf(i) || '', i.text, i.done ? 1 : 0, i.deadlineAge ?? '']);
+  return toB64(JSON.stringify({ v: 1, d }));
+}
+
+/** 符号か、人が読める文章か、どちらでも読み込める */
+function decodeData(input) {
+  const s = String(input).trim();
+  const hit = /#import=([A-Za-z0-9\-_]+)/.exec(s);
+  const bare = s.replace(/\s+/g, '');
+  const code = hit ? hit[1] : (/^[A-Za-z0-9\-_]{40,}$/.test(bare) ? bare : null);
+  if (code) {
+    const obj = JSON.parse(fromB64(code));
+    const rows = Array.isArray(obj) ? obj : obj.d;
+    if (!Array.isArray(rows)) throw new Error('形式がちがいます');
+    if (Array.isArray(rows[0]) || rows.length === 0) {
+      return rows.map(r => ({
+        text: r[2], decade: r[0] || null, cat: r[1] || null,
+        done: !!r[3], memo: '',
+        deadlineAge: r[4] === '' || r[4] == null ? null : Number(r[4]),
+        deadlineYear: null,
+      }));
+    }
+    return rows;   // 旧い形（そのままの配列）
+  }
+  return fromText(s);
+}
+
+/** 「#30代前半」「家族｜やりたいこと」の形の文章を読む */
+function fromText(s) {
+  const out = [];
+  let dec = null;
+  s.split(/\r?\n/).forEach(line => {
+    const t = line.trim();
+    if (!t) return;
+    if (t.startsWith('#') || t.startsWith('＃')) {
+      const name = t.slice(1).trim();
+      const d = DECADES.find(x => x.label === name);
+      dec = d ? d.id : null;
+      return;
+    }
+    let cat = null, text = t;
+    const m = /^(.{1,6}?)\s*[｜|]\s*(.+)$/.exec(t);
+    if (m) {
+      const c = CATS.find(x => x.label === m[1].trim());
+      if (c) { cat = c.id; text = m[2].trim(); }
+    }
+    if (text) out.push({ text, decade: dec, cat, done: false, memo: '', deadlineAge: null, deadlineYear: null });
+  });
+  if (!out.length) throw new Error('読み取れませんでした');
+  return out;
+}
+
+function applyImport(data) {
+  items = data.map(normalize);
+  saveItems();
+  localStorage.setItem(MIGRATE_KEY, '1');
+  renderAll();
+}
+
+function doExport() {
+  const link = location.origin + location.pathname + '#import=' + encodeData(items);
+  ioBox.value = link;
+  ioBox.focus(); ioBox.select();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link)
+      .then(() => { ioMsg.textContent = `コピーしました（${items.length}こ）。べつの端末で開くか、下の枠に貼り付けてください。`; })
+      .catch(() => { ioMsg.textContent = `書き出しました（${items.length}こ）。枠の中をコピーしてください。`; });
+  } else {
+    ioMsg.textContent = `書き出しました（${items.length}こ）。枠の中をコピーしてください。`;
+  }
+}
+function doImport() {
+  const v = ioBox.value.trim();
+  if (!v) { ioMsg.textContent = '枠に貼り付けてから押してください。'; return; }
+  let data;
+  try { data = decodeData(v); }
+  catch { ioMsg.textContent = '読み取れませんでした。貼り付けた内容をご確認ください。'; return; }
+  if (!confirm(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。\nよろしいですか？`)) return;
+  applyImport(data);
+  ioBox.value = '';
+  ioMsg.textContent = `${items.length}こ の夢を読み込みました。`;
+}
+
+/** リンクで開かれたときの読み込み */
+function importFromHash() {
+  if (!location.hash.startsWith('#import=')) return;
+  let data;
+  try { data = decodeData(location.hash); }
+  catch { return; }
+  const ok = confirm(`${data.length}この夢を読み込みます。\nいまこの端末に入っている夢（${items.length}こ）は置きかえられます。\nよろしいですか？`);
+  history.replaceState(null, '', location.pathname + location.search);
+  if (ok) applyImport(data);
+}
+
+
 /* ══════════ 設定 ══════════ */
 function openSettings() {
   fBirth.value = birthStr();
   ageHint.textContent = `いまは ${currentAge()}歳です。`;
+  ioBox.value = ''; ioMsg.textContent = '';
   openSheet(setOverlay);
 }
 function saveSettings() {
@@ -391,8 +546,6 @@ function saveSettings() {
 /* ══════════ イベント ══════════ */
 $('addBtn').addEventListener('click', () => openForm());
 $('panelClose').addEventListener('click', () => { openDecadeId = null; renderBuckets(); renderPanel(); });
-sortSelect.addEventListener('change', () => { currentSort = sortSelect.value; renderPanel(); });
-moreBtn.addEventListener('click', () => { orderShown += ORDER_STEP; renderOrder(); });
 
 $('formClose').addEventListener('click', closeForm);
 $('formSave').addEventListener('click', saveForm);
@@ -401,12 +554,14 @@ fText.addEventListener('keydown', e => { if (e.key === 'Enter') saveForm(); });
 fAge.addEventListener('input', () => {
   const a = parseInt(fAge.value, 10);
   if (!isNaN(a)) { const d = decadeFromAge(a); if (d) formDecade = d; }
-  syncPicker();
+  syncPickers();
 });
 
 $('gearBtn').addEventListener('click', openSettings);
 $('setClose').addEventListener('click', () => closeSheet(setOverlay));
 $('setSave').addEventListener('click', saveSettings);
+$('exportBtn').addEventListener('click', doExport);
+$('importBtn').addEventListener('click', doImport);
 setOverlay.addEventListener('click', e => { if (e.target === setOverlay) closeSheet(setOverlay); });
 
 document.addEventListener('keydown', e => {
@@ -458,13 +613,13 @@ function animateConfetti() {
 /* ══════════ 起動 ══════════ */
 loadItems();
 
-// サンプルの夢はコードに持たせない（公開リポジトリに個人の内容を残さないため）
-// 端末に保存ずみの夢はそのまま読み込まれる
+// 夢の内容はコードに持たせない（公開リポジトリに個人の内容を残さないため）
+// 端末に保存ずみの夢、またはリンク／貼り付けで読み込んだ夢だけを表示する
 
 migrate();
-buildDecadePicker();
-sortSelect.value = currentSort;
+buildPickers();
 renderAll();
+importFromHash();
 
 // ローカルでの開発中はオフライン用キャッシュを使わない（古い画面が出てしまうため）
 const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
 
@@ -52,16 +52,7 @@
       <button class="panel-close" id="panelClose" aria-label="とじる">✕</button>
     </div>
 
-    <div class="panel-tools">
-      <span class="tools-label">並び替え</span>
-      <select id="sortSelect" class="sort-select">
-        <option value="age">叶える順</option>
-        <option value="newest">新しい順</option>
-        <option value="oldest">古い順</option>
-      </select>
-    </div>
-
-    <ul class="dreams" id="panelList"></ul>
+    <div class="panel-body" id="panelBody"></div>
     <p class="panel-empty" id="panelEmpty" hidden>このバケツはまだ空っぽです。<br />やりたいことを入れてみよう！</p>
 
     <div class="done-block" id="panelDoneBlock" hidden>
@@ -79,11 +70,8 @@
 
   <!-- ══════════ 叶える順の一覧（未達成のみ） ══════════ -->
   <h2 class="section-title">叶える順</h2>
-  <ul class="dreams" id="orderList"></ul>
+  <div class="order-body" id="orderBody"></div>
   <p class="panel-empty" id="orderEmpty" hidden>まだ夢がありません。<br />バケツに入れてみよう！</p>
-  <div class="more-wrap">
-    <button class="more-btn" id="moreBtn" hidden>もっと見る</button>
-  </div>
 
 </div>
 
@@ -102,6 +90,9 @@
 
       <span class="field-label">どの年代のバケツに入れる？</span>
       <div class="decade-picker" id="fDecade"></div>
+
+      <span class="field-label">なかま分け</span>
+      <div class="decade-picker" id="fCat"></div>
 
       <label class="field-label" for="fAge">何歳までに？（任意）</label>
       <div class="age-row">
@@ -133,11 +124,19 @@
       <p class="field-hint" id="ageHint"></p>
       <p class="field-hint">年齢から「何年のこと？」を計算するのに使います。</p>
       <button class="sheet-save" id="setSave">保存する</button>
+
+      <hr class="set-sep" />
+      <p class="set-head">べつの端末にうつす</p>
+      <p class="field-hint">パソコンと携帯で同じ内容にしたいときに使います。</p>
+      <button class="set-sub-btn" id="exportBtn">この端末の夢を書き出す</button>
+      <textarea id="ioBox" class="field-input io-box" rows="3" placeholder="書き出したリンク、または夢のリストを貼り付けて「読み込む」"></textarea>
+      <button class="set-sub-btn" id="importBtn">貼り付けたものを読み込む</button>
+      <p class="field-hint" id="ioMsg"></p>
     </div>
   </div>
 </div>
 
 <canvas id="confetti" aria-hidden="true"></canvas>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
