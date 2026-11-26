@@ -419,6 +419,16 @@ body {
 .sheet-save:active { transform: translateY(3px); box-shadow: 0 1px 0 #d94f96; }
 
 
+.foot {
+  text-align: center;
+  margin: 34px 20px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #8aa3c0;
+  letter-spacing: .02em;
+}
+
+
 /* ── たずねる窓 ───────────────────────────────────── */
 .ask-overlay { align-items: center; z-index: 70; }
 .ask-box {

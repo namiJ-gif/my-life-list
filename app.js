@@ -615,6 +615,7 @@ loadItems();
 
 migrate();
 buildPickers();
+$('foot').textContent = `My Life Bucket List ・ ${VERSION}`;
 renderAll();
 importFromHash();
 
