@@ -1,9 +1,9 @@
-const CACHE = 'bucket-list-v4';
+const CACHE = 'bucket-list-v5';
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=4',
-  './app.js?v=4',
+  './style.css?v=5',
+  './app.js?v=5',
   './manifest.json',
   './images/hero.jpg',
   './images/bucket-30f.png',
@@ -11,6 +11,7 @@ const ASSETS = [
   './images/bucket-40.png',
   './images/bucket-50.png',
   './images/bucket-60.png',
+  './images/btn-add.png',
 ];
 
 self.addEventListener('install', e => {
